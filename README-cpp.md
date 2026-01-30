@@ -14,7 +14,7 @@ L'utilisation de cette methode change la valeur de l'attribut `state` de l'objet
     - / : division
     - \* : multiplication
     - % : modulo
-    - ! : factorielle (la factorielle passe apres la valeur et peut prendre tout valeur dans R<sup>+ comme elle utilise la fonction `gamma`)
+    - ! : factorielle (la factorielle passe apres la valeur et peut prendre tout valeur dans R<sup>+ </sup> comme elle utilise la fonction `gamma`)
 
 - #### Logarithmes et exponentielle :
     - ln : logarithme neperien
