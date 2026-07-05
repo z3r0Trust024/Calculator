@@ -1,25 +1,18 @@
 #include "calculator.hpp"
+num m_pi{boost::math::constants::pi<num>()};
 
 std::vector<std::string> Calculator::shunting_yard(std::vector<std::string> splited_expr)
 {
     std::vector<std::string> sortie;
     std::stack<std::string> operateur;
     std::string token;
-    std::regex pattern {"([-]?[0-9]+)(.[0-9]+)?"};
+    boost::regex pattern ("([-]?[0-9]+)(.[0-9]+)?");
 
     for (size_t i = 0; i<splited_expr.size();i++)
     {
-        if (std::regex_match(splited_expr[i],pattern))
+        if (boost::regex_match(splited_expr[i],pattern) || splited_expr[i] == "A" || splited_expr[i] == "P")
         {
             sortie.push_back(splited_expr[i]);
-        }
-        else if (splited_expr[i] == "P")
-        {
-            sortie.push_back(this->toStr(M_PI));
-        }
-        else if (splited_expr[i] == "A")
-        {
-            sortie.push_back(this->resultat);
         }
         else if (splited_expr[i] == ")")
         {
@@ -64,12 +57,12 @@ std::vector<std::string> Calculator::shunting_yard(std::vector<std::string> spli
 
 std::vector<std::string> Calculator::split_expr(std::string const& expr)
 {
-    qDebug() << "avant :" << QString::fromStdString(expr);
-std::cout <<"expr"<<expr;
+    //qDebug() << "avant :" << QString::fromStdString(expr);
+    //std::cout <<"expr"<<expr;
     std::vector<std::string> result ;
-    std::string cur {expr[0]};
+    std::string cur (1,expr[0]);
     std::string token,n_token;
-    std::regex alpha {"[a-z]+"};
+    boost::regex alpha ("[a-z]+");
     short type_a; 
     if (cur == "+" || cur == "-") result.push_back("0");
     type_a=this->type(cur);
@@ -103,7 +96,7 @@ std::cout <<"expr"<<expr;
         }
         else
         {
-            if (this->type(cur) >= 3||(std::regex_match(cur,alpha) && this->isFunc(cur)))
+            if (this->type(cur) >= 3||(boost::regex_match(cur,alpha) && this->isFunc(cur)))
             {
                 result.push_back(cur);
                 cur = "";
@@ -131,11 +124,11 @@ std::cout <<"expr"<<expr;
         result.push_back(cur);
         cur = "";
     }
-    qDebug() << "apres :" ;
+    /*qDebug() << "apres :" ;
     for (auto const& f: result)
     {
         qDebug() << QString::fromStdString(f);
-    }
+    }*/
     return result;
 }
 
@@ -150,12 +143,12 @@ short Calculator::precedence(std::string const& e)
 
 short Calculator::type(std::string c)
 {
-    std::vector<std::string> pattern {"[0-9.]+","[a-z]+","[\\$\\-+/*^%!]","[)(]","P","A","!"} ;
-    std::regex r;
+    std::vector<std::string> pattern ({"[0-9.]+","[a-z]+","[\\$\\-+/*^%!]","[)(]","P","A","!"}) ;
+    boost::regex r;
     size_t i;
     for (i=0; i<pattern.size();i++){
         r = pattern[i];
-        if (std::regex_match(c,r)){
+        if (boost::regex_match(c,r)){
                 break;
         }
     }
@@ -164,7 +157,7 @@ short Calculator::type(std::string c)
 
 bool Calculator::isFunc(std::string e)
 {
-    for (auto x: this->fonc_list){
+    for (auto const&x: this->fonc_list){
         if (x == e)
         {
             return true;
@@ -173,15 +166,15 @@ bool Calculator::isFunc(std::string e)
     return false;
 }
 
-long double Calculator::convertToRadian(long double const& x)
+num Calculator::convertToRadian(num const& x)
 {
     if (this->angle == 'D')
     {
-        return x/180*M_PI;
+        return x/180*m_pi;
     }
     else if (this->angle == 'G')
     {
-        return x/100*M_PI;
+        return x/100*m_pi;
     }
     else
     {
@@ -189,15 +182,15 @@ long double Calculator::convertToRadian(long double const& x)
     }
 }
 
-long double Calculator::convertFromRadian(long double const& x)
+num Calculator::convertFromRadian(num const& x)
 {
     if (this->angle == 'D')
     {
-        return x*180/M_PI;
+        return x*180/m_pi;
     }
     else if (this->angle == 'G')
     {
-        return x*100/M_PI;
+        return x*100/m_pi;
     }
     else
     {
@@ -208,7 +201,7 @@ long double Calculator::convertFromRadian(long double const& x)
 std::string Calculator::calculate(std::string& expr)
 {
     expr.erase(std::remove_if(expr.begin(), expr.end(), ::isspace), expr.end());
-    std::string rep;
+    num rep;
     std::string message {"Math error:"};
     std::vector<std::string> postfix_expr;
     try 
@@ -238,6 +231,11 @@ std::string Calculator::calculate(std::string& expr)
         this -> state = 3;
         return "Math Error: Nombre trop grand";
     }
+    catch (std::underflow_error const& e)
+    {
+        this -> state = 3;
+        return "Math Error: Nombre trop grand";
+    }
     catch (std::runtime_error const& e)
     {
         this -> state = 1;
@@ -254,7 +252,7 @@ std::string Calculator::calculate(std::string& expr)
         return "Erreur de syntaxe";
     }
     this -> state = 0;
-    this->resultat = rep;
+    this -> resultat = rep;
 
     return this->formatOutput(rep);
 }
@@ -290,16 +288,15 @@ std::string Calculator::MS(std::string & s)
     if (this -> state == 0) 
     {
         this -> memory = this -> resultat;
-        return this -> memory;
+        return this -> memory.str();
     }
     return m ;
-
 }
 
 std::string Calculator::MR()
 {
-    if ((this->memory).empty()) return "Erreur: Memoire vide";
-    return this-> memory;
+    if (boost::math::isnan(this->memory)) return "Erreur: Memoire vide";
+    return this-> memory.str();
 }
 
 std::string Calculator::MP(std::string & s)
@@ -307,10 +304,10 @@ std::string Calculator::MP(std::string & s)
     std::string m = this -> calculate (s);
     if (this -> state == 0) 
     {
-        long double l = std::stold(this->memory) ? !(this->memory.empty()) : 0;
-        l += std::stold(this -> resultat);
-        this -> memory = std::to_string(l);
-        return this -> memory;
+        num l = this->memory ? !(boost::math::isnan(this->memory)) : 0;
+        l += this -> resultat;
+        this -> memory = l;
+        return this -> memory.str();
     }
     return m ;
 }
@@ -320,17 +317,17 @@ std::string Calculator::MM(std::string & s)
     std::string m = this -> calculate (s);
     if (this -> state == 0) 
     {
-        long double l = std::stold(this->memory) ? !(this->memory.empty()) : 0;
-        l -= std::stold(this -> resultat);
-        this -> memory = std::to_string(l);
-        return this -> memory;
+        num l = this->memory ? !(boost::math::isnan(this->memory)) : 0;
+        l -= this -> resultat;
+        this -> memory = l;
+        return this -> memory.str();
     }
     return m ;
 }
 
 void Calculator::MC()
 {
-    this->memory.clear();
+    this->memory=nan("");
 }
 
 bool Calculator::test_syntax(std::string & expr)
@@ -344,29 +341,29 @@ bool Calculator::test_syntax(std::string & expr)
     }
     if (p!=0) return false; 
 
-    std::regex pat {"\\([\\-+/*^%!$]*\\)"};
-    if (std::regex_search(expr,pat)) return false; 
-    std::regex pat1 {"[+]{2,}"}, pat2 {"[\\-]{2,}"}, pat3 {"\\+\\-"}, pat4 {"\\-\\+"};
+    boost::regex pat {"\\([\\-+/*^%!$]*\\)"};
+    if (boost::regex_search(expr,pat)) return false; 
+    boost::regex pat1 {"[+]{2,}"}, pat2 {"[\\-]{2,}"}, pat3 {"\\+\\-"}, pat4 {"\\-\\+"};
 
     while (true)
     {
-        if (std::regex_search(expr, pat1)) {
-            expr = std::regex_replace(expr, pat1, "+");
+        if (boost::regex_search(expr, pat1)) {
+            expr = boost::regex_replace(expr, pat1, "+");
             continue;
         }
 
-        if (std::regex_search(expr, pat2)) {
+        if (boost::regex_search(expr, pat2)) {
            expr = this->replaceConsecutiveDashes(expr);
             continue;
         }
 
-        if (std::regex_search(expr, pat3)) {
-            expr = std::regex_replace(expr, pat3, "-");
+        if (boost::regex_search(expr, pat3)) {
+            expr = boost::regex_replace(expr, pat3, "-");
             continue;
         }
 
-        if (std::regex_search(expr, pat4)) {
-            expr = std::regex_replace(expr, pat4, "-");
+        if (boost::regex_search(expr, pat4)) {
+            expr = boost::regex_replace(expr, pat4, "-");
             continue;
         }
 
@@ -378,54 +375,54 @@ bool Calculator::test_syntax(std::string & expr)
 
     car = expr[expr.size()-1];
     pat = "[0-9A-Z)!]";
-    if (!(std::regex_match(car,pat))) return false; 
+    if (!(boost::regex_match(car,pat))) return false; 
 
     pat = "([a-z]+)([\\-+/*^%!$]{1})";
-    if (std::regex_search(expr,pat)) return false; 
+    if (boost::regex_search(expr,pat)) return false; 
 
     std::vector<std::string> pattern {"\\.[^\\d]+","[^\\d]+\\.","\\d+\\.\\d+(\\.\\d+)+"}; 
     for(auto x: pattern ){
         pat=x;
-        if (std::regex_search(expr,pat)) return false; 
+        if (boost::regex_search(expr,pat)) return false; 
     }
 
     for (auto x: this->fonc_list)
     {
         pat = x+"([^(])";
-        if (std::regex_search(expr,pat)) return false; 
+        if (boost::regex_search(expr,pat)) return false; 
     }
 
     pat = "[/*^%$]{2,}" ;
-    if (std::regex_search(expr,pat)) return false; 
+    if (boost::regex_search(expr,pat)) return false; 
 
     pat = "[\\-+/*^%!$][!]+";
-    if (std::regex_search(expr,pat)) return false; 
+    if (boost::regex_search(expr,pat)) return false; 
 
     pat = "[\\-\\+][/*^%$]";
-    if (std::regex_search(expr,pat)) return false; 
+    if (boost::regex_search(expr,pat)) return false; 
 
     pat = "[\\!]{1}[a-zA-Z]+";
-    if (std::regex_search(expr,pat)) return false; 
+    if (boost::regex_search(expr,pat)) return false; 
 
     pat = "[\\!]{1}[\\d]+";
-    if (std::regex_search(expr,pat)) return false; 
+    if (boost::regex_search(expr,pat)) return false; 
 
     pat = "\\-\\(";
-    if (std::regex_search(expr,pat)) std::regex_replace(expr,pat,"-1*(");
+    if (boost::regex_search(expr,pat)) boost::regex_replace(expr,pat,"-1*(");
 
     return true;
 }
 
 std::string Calculator::replaceConsecutiveDashes(std::string const& input) {
     std::string result;
-    std::regex dashRegex("-+");
-    std::sregex_iterator currentMatch(input.begin(), input.end(), dashRegex);
-    std::sregex_iterator lastMatch;
+    boost::regex dashRegex("-+");
+    boost::sregex_iterator currentMatch(input.begin(), input.end(), dashRegex);
+    boost::sregex_iterator lastMatch;
 
     size_t lastPos = 0;
 
     while (currentMatch != lastMatch) {
-        std::smatch match = *currentMatch;
+        boost::smatch match = *currentMatch;
         size_t matchPos = match.position();
         size_t matchLength = match.length();
         result += input.substr(lastPos, matchPos - lastPos);
@@ -442,102 +439,109 @@ std::string Calculator::replaceConsecutiveDashes(std::string const& input) {
 }
 
 
-std::string Calculator::formatOutput(std::string & res)
+std::string Calculator::formatOutput(num const& res)
 {
     std::ostringstream s;
     std::string rep;
-    if (std::abs(std::stold(res)) < 1.0e15L ) res = "0";
     if (this -> mode == 'F')
     {
-        s << std::scientific<<std::showpos<<std::stold(res);
+        s << std::scientific<<std::showpos<< res;
     }
     else if (this -> mode == 'D')
     {
-        long degres = static_cast<int> (std::stold(res)); 
-        long double decimal_minutes = (std::stold(res) - degres)*60;
+        long degres = static_cast<int> (res); 
+        num decimal_minutes = (res - degres)*60;
         long minutes = static_cast<int> (decimal_minutes);
-        long double secondes = (decimal_minutes - minutes)*60;
-        s <<degres<<"° "<<std::abs(minutes)+ "' "<<std::abs(secondes)<<"''";
+        num secondes = (decimal_minutes - minutes)*60;
+        s <<degres<<"° "<<std::abs(minutes)+ "' "<<abs(secondes)<<"''";
     }
     else
     {
-        s<<std::stold(res);
+        s<<res;
     }
+    //qDebug()<<"ETO"<<QString::fromStdString(s.str());
     return s.str();
 }
 
-std::string Calculator::eval_expr(std::vector<std::string> const& conteneur)
+num Calculator::eval_expr(std::vector<std::string> const& conteneur)
 {
-    std::regex number("[0-9]+");
-    std::stack<std::string> pile;
-    std::string a;
-    long double x,y,z;
+    qDebug()<<"IRETO: ";
+    for (auto const& q: conteneur)
+    {
+        qDebug()<<QString::fromStdString(q)<<"|";
+    }
+    boost::regex number("[0-9]+");
+    std::stack<num> pile;
+    num x,y,z;
 
     for(size_t i =0 ; i < conteneur.size() ; i++)
     {
-        if(std::regex_search(conteneur[i],number))
+        if(boost::regex_search(conteneur[i],number))
         {
-            pile.push(conteneur[i]);
+            pile.push(static_cast<num>(conteneur[i]));
+        }
+        else if (conteneur[i] == "A")
+        {
+            pile.push(this->resultat);
+        }
+        else if (conteneur[i] == "P")
+        {
+            pile.push(m_pi);
         }
         else if(conteneur[i]=="+")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
             z = y + x;
-            a = this->toStr(z);
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="-")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
             z = y - x;
-            a = this->toStr(z);
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="/")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
             if(x==0)
             {
                 throw std::domain_error("Division par zéro");
             }
             z = y / x;
-            a = this->toStr(z);
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="*")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
             z = y * x;
-            a = this->toStr(z);
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="^")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
-            z = powl(y,x);
-            a = this->toStr(z);
-            pile.push(a);
+            z = pow(y,x);
+            pile.push(z);
         }
         else if(conteneur[i]=="$")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
             if (x<0)
             {
@@ -548,207 +552,185 @@ std::string Calculator::eval_expr(std::vector<std::string> const& conteneur)
                 throw std::domain_error("La racine par zero d'un nombre");
             }
             if (y == 2.0L){
-                z = sqrtl(x);
+                z = sqrt(x);
             }
             else
             {
-                z = powl(x , (1/y));
+                z = pow(x , (1/y));
             }
-            a = this->toStr(z);
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="%")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             pile.pop();
-            y = std::stold(pile.top());
+            y = pile.top();
             pile.pop();
             if (x == 0L)
             {
                 throw std::domain_error("Division par zéro");
             }
-            z = fmodl(y,x);
-            a = this->toStr(z);
-            pile.push(a);
+            z = fmod(y,x);
+            pile.push(z);
         }
         else if(conteneur[i]=="!")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             if(x<0)
             {
                 throw std::domain_error("Factorielle d'un nombre negatif");
             }
-            z = tgammal(x+1);
-            a = this->toStr(z);
+            z = tgamma(x+1);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="exp")
         {
-            x = std::stold(pile.top());
-            z = expl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = exp(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="ln")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             if(x<=0)
             {
                 throw std::domain_error("Logarithme d'un nombre nul ou negatif");
             }
-            z = logl(x);
-            a = this->toStr(z);
+            z = log(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="log")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             if(x<=0)
             {
                 throw std::domain_error("Logarithme d'un nombre nul ou negatif");
             }
-            z = log10l(x);
-            a = this->toStr(z);
+            z = log10(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="sin")
         {
-            x = std::stold(pile.top());
-            z = sinl(this->convertToRadian(x));;
-            a = this->toStr(z);
+            x = pile.top();
+            z = sin(this->convertToRadian(x));;
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="asin")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             if (x<-1 || x > 1) throw std::domain_error("Fonction asin: Valeur en dehors de l'ensemble de definition");
-            z = this->convertFromRadian(asinl(x));
-            a = this->toStr(z);
+            z = this->convertFromRadian(asin(x));
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="sh")
         {
-            x = std::stold(pile.top());
-            z = sinhl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = sinh(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="ash")
         {
-            x = std::stold(pile.top());
-            z = asinhl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = asinh(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="cos")
         {
-            x = std::stold(pile.top());
-            z = cosl(this->convertToRadian(x));
-            a = this->toStr(z);
+            x = pile.top();
+            z = cos(this->convertToRadian(x));
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="acos")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             if (x<-1 || x > 1) throw std::domain_error("Fonction acos: Valeur en dehors de l'ensemble de definition");
-            z = this->convertFromRadian(acosl(x));
-            a = this->toStr(z);
+            z = this->convertFromRadian(acos(x));
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="ch")
         {
-            x = std::stold(pile.top());
-            z = coshl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = cosh(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="ach")
         {
-            x = std::stold(pile.top());
-            z = acoshl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = acosh(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="tan")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             z = this->convertToRadian(x);
-            if (z==(M_PI/2))
+            if (z==(m_pi/2))
             {
                 throw std::domain_error("Fonction tan: Valeur en dehors de l'ensemble de definition");
             }
-            z = tanl(z);
-            a = this->toStr(z);
+            z = tan(z);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="atan")
         {
-            x = std::stold(pile.top());
-            z = this->convertFromRadian(atanl(x));
-            a = this->toStr(z);
+            x = pile.top();
+            z = this->convertFromRadian(atan(x));
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="th")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             z = tanh(x);
-            a = this->toStr(z);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="ath")
         {
-            x = std::stold(pile.top());
+            x = pile.top();
             z = atanh(x);
-            a = this->toStr(z);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="abs")
         {
-            x = std::stold(pile.top());
-            z = std::abs(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = abs(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="ceil")
         {
-            x = std::stold(pile.top());
-            z = ceill(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = ceil(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="floor")
         {
-            x = std::stold(pile.top());
-            z = floorl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = floor(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else if(conteneur[i]=="round")
         {
-            x = std::stold(pile.top());
-            z = roundl(x);
-            a = this->toStr(z);
+            x = pile.top();
+            z = round(x);
             pile.pop();
-            pile.push(a);
+            pile.push(z);
         }
         else
         {
@@ -759,16 +741,9 @@ std::string Calculator::eval_expr(std::vector<std::string> const& conteneur)
     {
         throw std::runtime_error("Erreur de syntaxe ");
     }
-    if (pile.top() == "inf" || pile.top() == "-inf" || pile.top() ==  "nan" )
+    if (boost::math::isinf(pile.top()) || boost::math::isnan(pile.top()) )
     {
         throw std::overflow_error("Nombre trop grand");
     }
-    return pile.top();;
-}
-
-std::string Calculator::toStr(long double const& n)
-{
-    std::ostringstream s;
-    s<<std::scientific<<std::setprecision(20)<<n;
-    return s.str();
+    return pile.top();
 }
